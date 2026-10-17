@@ -1,0 +1,8 @@
+"use client";
+import { useState } from "react";
+import { supabase, isSupabaseConfigured } from "../../lib/supabase";
+export default function LoginPage(){
+ const [email,setEmail]=useState(""); const [password,setPassword]=useState(""); const [message,setMessage]=useState(""); const [loading,setLoading]=useState(false);
+ async function submit(e){e.preventDefault(); if(!isSupabaseConfigured)return setMessage("Supabase non è ancora configurato."); setLoading(true); const {error}=await supabase.auth.signInWithPassword({email,password}); setLoading(false); if(error)return setMessage("Credenziali non valide o account non ancora confermato."); window.location.href="/";}
+ return <main className="auth-shell"><section className="auth-card auth-card-small"><a className="auth-logo" href="/"><span className="logo-mark">HB</span><span>HairBook</span></a><p className="auth-kicker">Area riservata</p><h1>Accedi</h1><form onSubmit={submit} className="auth-form"><label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="email" /></label><label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required autoComplete="current-password" /></label><a className="forgot-link" href="/password-dimenticata">Password dimenticata?</a>{message&&<p className="form-message" role="status">{message}</p>}<button className="button button-primary button-large full" disabled={loading}>{loading?"Accesso...":"Accedi"}</button></form><p className="auth-switch">Non hai un account? <a href="/registrazione">Registrati</a></p></section></main>;
+}
