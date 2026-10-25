@@ -1,3 +1,4 @@
+import AuthHeader from "../components/AuthHeader";
 export default function Home() {
   const services = [
     { icon: "✂", name: "Shampoo e taglio", duration: "30 minuti", price: "€ 25", active: true },
