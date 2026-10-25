@@ -57,7 +57,7 @@ export default function LoginPage() {
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("stato")
+      .select("stato, ruolo")
       .eq("id", data.user.id)
       .single();
 
