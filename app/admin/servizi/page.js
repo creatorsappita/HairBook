@@ -211,6 +211,7 @@ export default function AdminServiziPage() {
           <nav className="services-nav">
             <a className="button button-secondary" href="/admin/clienti">Clienti</a>
             <a className="button button-primary" href="/admin/servizi">Servizi</a>
+            <a className="button button-secondary" href="/admin/orari">Orari</a>
             <a className="button button-secondary" href="/">Home</a>
             <button className="button button-dark" type="button" onClick={logout}>Esci</button>
           </nav>
