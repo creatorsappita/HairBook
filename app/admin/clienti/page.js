@@ -80,7 +80,12 @@ export default function AdminClientiPage() {
     <div className="admin-panel">
       <div className="admin-topbar">
         <div><p className="auth-kicker">Area proprietario</p><h1>Gestione clienti</h1></div>
-        <div className="admin-actions"><a className="button button-secondary" href="/">Home</a><button className="button button-dark" onClick={logout}>Esci</button></div>
+       <div className="admin-actions">
+  <a className="button button-secondary" href="/admin/clienti">Clienti</a>
+  <a className="button button-primary" href="/admin/servizi">Servizi</a>
+  <a className="button button-secondary" href="/">Home</a>
+  <button className="button button-dark" onClick={logout}>Esci</button>
+</div>
       </div>
 
       <div className="admin-summary">
