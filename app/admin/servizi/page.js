@@ -208,13 +208,15 @@ export default function AdminServiziPage() {
             <p className="auth-kicker">Area proprietario</p>
             <h1>Gestione servizi</h1>
           </div>
-          <nav className="services-nav">
-            <a className="button button-secondary" href="/admin/clienti">Clienti</a>
-            <a className="button button-primary" href="/admin/servizi">Servizi</a>
-            <a className="button button-secondary" href="/admin/orari">Orari</a>
-            <a className="button button-secondary" href="/">Home</a>
-            <button className="button button-dark" type="button" onClick={logout}>Esci</button>
-          </nav>
+         <nav className="services-nav">
+      <a className="button button-secondary" href="/admin/clienti">Clienti</a>
+      <a className="button button-primary" href="/admin/servizi">Servizi</a>
+      <a className="button button-secondary" href="/admin/orari">Orari</a>
+      <a className="button button-secondary" href="/admin/agenda">Agenda</a>
+      <a className="button button-secondary" href="/">Home</a>
+      <button className="button button-dark" type="button" onClick={logout}>Esci</button>
+        </nav>
+
         </header>
 
         <section className="service-editor">
