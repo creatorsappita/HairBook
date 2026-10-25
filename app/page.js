@@ -14,24 +14,7 @@ export default function Home() {
 
   return (
     <main className="home-page">
-      <header className="header">
-        <a className="logo" href="#">
-          <span className="logo-mark">HB</span>
-          <span>HairBook</span>
-        </a>
-
-        <nav className="navigation">
-          <a href="#come-funziona">Come funziona</a>
-          <a href="#servizi">Servizi</a>
-          <a href="#parrucchieri">Per i parrucchieri</a>
-        </nav>
-
-        <div className="header-actions">
-          <a className="button button-secondary" href="/login">Accedi</a>
-          <a className="button button-primary" href="/registrazione">Registrati</a>
-        </div>
-      </header>
-
+     <AuthHeader />
       <section className="hero">
         <div className="hero-content">
           <div className="eyebrow"><span>●</span> Prenotazioni semplici e veloci</div>
