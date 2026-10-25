@@ -86,8 +86,13 @@ export default function LoginPage() {
       setMessage("Questo account è stato bloccato. Contatta il salone per assistenza.");
       return;
     }
-
-    window.location.href = "/";
+    if (profile.ruolo === "PROPRIETARIO") {
+  window.location.href = "/admin/clienti";
+} else if (profile.ruolo === "OPERATORE") {
+  window.location.href = "/operatore";
+} else {
+  window.location.href = "/area-cliente";
+}
   }
 
   return (
