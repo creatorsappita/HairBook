@@ -648,3 +648,40 @@ a {
 .customer-profile-data dd{margin:0;font-weight:700;overflow-wrap:anywhere}
 @media(max-width:900px){.customer-welcome{align-items:stretch;flex-direction:column}.customer-grid{grid-template-columns:1fr}.customer-profile-card{grid-template-columns:1fr}}
 @media(max-width:620px){.customer-shell{padding:24px 18px}.customer-header{align-items:flex-start;flex-direction:column}.customer-header-actions{width:100%}.customer-header-actions .button{flex:1}.customer-welcome{padding:24px}.customer-card{min-height:auto;padding:23px}.customer-profile-data{grid-template-columns:1fr}}
+
+/* HairBook: gestione servizi proprietario */
+.services-shell{min-height:100vh;padding:38px 5%;background:var(--background)}
+.services-panel{width:min(1250px,100%);margin:0 auto}
+.services-topbar{display:flex;align-items:center;justify-content:space-between;gap:22px;margin-bottom:28px}
+.services-topbar h1{margin:6px 0 0;font-family:Georgia,serif;font-size:46px}
+.services-nav{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+.service-editor,.services-list-section{padding:28px;border:1px solid var(--border);border-radius:22px;background:#fff;margin-bottom:22px}
+.service-editor-heading,.services-list-heading{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:22px}
+.service-editor-heading h2,.services-list-heading h2{margin:6px 0 0;font-family:Georgia,serif;font-size:30px}
+.service-form{display:grid;grid-template-columns:repeat(2,1fr);gap:17px;align-items:end}
+.service-form label{display:grid;gap:8px;font-size:14px;font-weight:700}
+.service-form input,.service-form textarea,.services-list-heading select{width:100%;padding:13px;border:1px solid var(--border);border-radius:11px;background:#fff;font:inherit}
+.service-form textarea{resize:vertical}
+.service-form-wide{grid-column:1/-1}
+.service-active-check{display:flex!important;grid-column:1/-1;grid-template-columns:20px 1fr!important;align-items:center!important}
+.service-active-check input{width:18px;height:18px;margin:0}
+.service-form>.button{justify-self:start}
+.services-list-heading select{width:210px}
+.services-list{display:grid;gap:13px}
+.managed-service-card{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px;border:1px solid var(--border);border-radius:16px;background:#fff}
+.managed-service-disabled{opacity:.65;background:#f7f4f1}
+.managed-service-main{display:flex;align-items:flex-start;gap:15px}
+.managed-service-icon{display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;border-radius:14px;background:#f3e9df;font-size:21px}
+.managed-service-main h3{margin:0 0 6px;font-size:20px}
+.managed-service-main p{margin:0 0 11px;color:var(--muted);line-height:1.5}
+.managed-service-tags{display:flex;gap:7px;flex-wrap:wrap}
+.managed-service-tags span{padding:6px 9px;border-radius:999px;background:#f1efed;font-size:11px;font-weight:800}
+.managed-service-tags .tag-active{background:#dcefe5;color:#246747}
+.managed-service-tags .tag-disabled{background:#f9dddd;color:#8a2929}
+.managed-service-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.managed-service-actions button{padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-weight:700}
+.managed-service-actions button:hover{border-color:var(--primary);background:#fffaf5}
+.services-empty{padding:28px;border:1px dashed var(--border);border-radius:14px;text-align:center;color:var(--muted)}
+.form-message-success{background:#dcefe5;color:#246747}
+.form-message-error{background:#f9dddd;color:#8a2929}
+@media(max-width:850px){.services-topbar,.service-editor-heading,.services-list-heading,.managed-service-card{align-items:stretch;flex-direction:column}.services-nav{justify-content:flex-start}.service-form{grid-template-columns:1fr}.service-form-wide,.service-active-check{grid-column:auto}.services-list-heading select{width:100%}.managed-service-actions{justify-content:flex-start}}
