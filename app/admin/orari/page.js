@@ -82,7 +82,9 @@ export default function AdminOrariPage(){
   if(!allowed)return <main className="hours-shell"><section className="hours-panel hours-empty"><h1>Accesso negato</h1><p>{message}</p><a className="button button-primary" href="/">Torna alla home</a></section></main>;
 
   return <main className="hours-shell"><div className="hours-panel">
-    <header className="hours-topbar"><div><p className="auth-kicker">Area proprietario</p><h1>Orari del salone</h1></div><nav className="hours-nav"><a className="button button-secondary" href="/admin/clienti">Clienti</a><a className="button button-secondary" href="/admin/servizi">Servizi</a><a className="button button-primary" href="/admin/orari">Orari</a><a className="button button-secondary" href="/">Home</a><button className="button button-dark" onClick={logout}>Esci</button></nav></header>
+    <header className="hours-topbar"><div><p className="auth-kicker">Area proprietario</p><h1>Orari del salone</h1></div><nav className="hours-nav"><a className="button button-secondary" href="/admin/clienti">Clienti</a><a className="button button-secondary" href="/admin/servizi">Servizi</a><a className="button button-primary" href="/admin/orari">Orari</a>
+    <a className="button button-secondary" href="/admin/agenda">Agenda</a>
+    <a className="button button-secondary" href="/">Home</a><button className="button button-dark" onClick={logout}>Esci</button></nav></header>
 
     {message&&<p className="form-message" role="status">{message}</p>}
 
