@@ -1,113 +1,31 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useEffect, useMemo, useState } from "react";
 import { supabase, isSupabaseConfigured } from "../../lib/supabase";
 
-export default function PrenotaPage() {
-  const [services, setServices] = useState([]);
-  const [serviceId, setServiceId] = useState("");
-  const [date, setDate] = useState("");
-  const [slots, setSlots] = useState([]);
-  const [selected, setSelected] = useState("");
-  const [notes, setNotes] = useState("");
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [maxDate, setMaxDate] = useState("");
+const DAY_SHORT=["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
+const MONTH_SHORT=["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"];
+function isoDate(date){const y=date.getFullYear();const m=String(date.getMonth()+1).padStart(2,"0");const d=String(date.getDate()).padStart(2,"0");return `${y}-${m}-${d}`;}
+function fromIso(value){const[y,m,d]=value.split("-").map(Number);return new Date(y,m-1,d,12);}
+function addDays(date,n){const result=new Date(date);result.setDate(result.getDate()+n);return result;}
+function longDate(value){return fromIso(value).toLocaleDateString("it-IT",{weekday:"long",day:"2-digit",month:"long",year:"numeric"});}
 
-  useEffect(() => { load(); }, []);
-
-  async function load() {
-    if (!isSupabaseConfigured || !supabase) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { location.href = "/login"; return; }
-    const { data: profile } = await supabase.from("profiles").select("ruolo,stato").eq("id", user.id).single();
-    if (profile?.ruolo !== "CLIENTE" || profile?.stato !== "APPROVATO") { location.href = "/area-cliente"; return; }
-    const [{ data: serviceRows }, { data: settings }] = await Promise.all([
-      supabase.from("services").select("id,nome,descrizione,durata_minuti,prezzo").eq("attivo", true).order("ordine"),
-      supabase.from("booking_settings").select("maximum_booking_days").eq("id", 1).single(),
-    ]);
-    setServices(serviceRows || []);
-    if (serviceRows?.length) setServiceId(serviceRows[0].id);
-    const today = new Date();
-    setDate(today.toISOString().slice(0, 10));
-    const maximum = new Date(today);
-    maximum.setDate(maximum.getDate() + (settings?.maximum_booking_days || 60));
-    setMaxDate(maximum.toISOString().slice(0, 10));
-    setLoading(false);
-  }
-
-  useEffect(() => { if (serviceId && date) loadSlots(); }, [serviceId, date]);
-
-  async function loadSlots() {
-    setSelected("");
-    setMessage("");
-    const { data, error } = await supabase.rpc("get_available_slots", { p_date: date, p_service_id: serviceId });
-    if (error) { setMessage(error.message); setSlots([]); }
-    else setSlots((data || []).map((row) => row.slot_start.slice(0, 5)));
-  }
-
-  async function sendConfirmationEmail() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) throw new Error("Sessione non disponibile");
-
-    const response = await fetch("/api/email/booking-confirmation", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ bookingDate: date, startTime: selected }),
-    });
-
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || "Invio email non riuscito");
-    return result;
-  }
-
-  async function book() {
-    if (!selected) return setMessage("Seleziona un orario.");
-    setSaving(true);
-    setMessage("");
-
-    const { error } = await supabase.rpc("client_create_booking", {
-      p_service_id: serviceId,
-      p_date: date,
-      p_start_time: selected,
-      p_notes: notes,
-    });
-
-    if (error) {
-      setSaving(false);
-      setMessage(error.message);
-      await loadSlots();
-      return;
-    }
-
-    let emailSent = false;
-    try {
-      const emailResult = await sendConfirmationEmail();
-      emailSent = Boolean(emailResult.sent);
-    } catch (emailError) {
-      console.error("Prenotazione creata, ma email non inviata:", emailError);
-    }
-
-    setSaving(false);
-    setMessage(emailSent
-      ? "Prenotazione confermata. Ti abbiamo inviato l’email con il file da aggiungere al calendario."
-      : "Prenotazione confermata. L’email calendario non è stata inviata, ma l’appuntamento è salvato correttamente."
-    );
-    setSelected("");
-    setNotes("");
-    await loadSlots();
-    setTimeout(() => { location.href = "/area-cliente"; }, 2200);
-  }
-
-  if (loading) return <main className="booking-shell"><p>Caricamento...</p></main>;
-  const service = services.find((item) => item.id === serviceId);
-
-  return <main className="booking-shell"><div className="booking-panel"><header className="booking-top"><div><p className="auth-kicker">Area cliente</p><h1>Prenota appuntamento</h1></div><div><a className="button button-secondary" href="/area-cliente">Area cliente</a><a className="button button-secondary" href="/">Home</a></div></header>
-    <section className="booking-steps"><div className="booking-box"><h2>1. Scegli il servizio</h2><div className="booking-services">{services.map((item) => <button className={serviceId === item.id ? "selected" : ""} onClick={() => setServiceId(item.id)} key={item.id}><strong>{item.nome}</strong><span>{item.durata_minuti} min · € {Number(item.prezzo).toFixed(2)}</span><small>{item.descrizione}</small></button>)}</div></div>
-    <div className="booking-box"><h2>2. Scegli la data</h2><input className="booking-date" type="date" min={new Date().toISOString().slice(0, 10)} max={maxDate} value={date} onChange={(event) => setDate(event.target.value)} /><h2>3. Scegli l’orario</h2><div className="booking-slots">{slots.map((time) => <button className={selected === time ? "selected" : ""} onClick={() => setSelected(time)} key={time}>{time}</button>)}{!slots.length && <p>Nessun orario disponibile per questa data.</p>}</div></div>
-    <div className="booking-box booking-confirm"><h2>4. Conferma</h2>{service && <p><strong>{service.nome}</strong><br />{date || "Data non scelta"} {selected && `alle ${selected}`}<br />€ {Number(service.prezzo).toFixed(2)}</p>}<label>Note facoltative<textarea rows="3" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Esigenze o comunicazioni per il salone" /></label>{message && <p className="form-message">{message}</p>}<button className="button button-primary button-large" onClick={book} disabled={saving || !selected}>{saving ? "Prenotazione e invio email..." : "Conferma prenotazione"}</button></div></section>
-  </div></main>;
+export default function PrenotaPage(){
+ const[services,setServices]=useState([]),[serviceId,setServiceId]=useState(""),[date,setDate]=useState(""),[slots,setSlots]=useState([]),[selected,setSelected]=useState(""),[notes,setNotes]=useState(""),[message,setMessage]=useState(""),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[maxDays,setMaxDays]=useState(60),[workingHours,setWorkingHours]=useState([]),[closures,setClosures]=useState([]),[pageStart,setPageStart]=useState(0),[dayStatus,setDayStatus]=useState({}),[checkingDays,setCheckingDays]=useState(false);
+ useEffect(()=>{load();},[]);
+ async function load(){if(!isSupabaseConfigured||!supabase)return;const{data:{user}}=await supabase.auth.getUser();if(!user){location.href="/login";return;}const{data:p}=await supabase.from("profiles").select("ruolo,stato").eq("id",user.id).single();if(p?.ruolo!=="CLIENTE"||p?.stato!=="APPROVATO"){location.href="/area-cliente";return;}const[{data:s},{data:cfg},{data:h},{data:c}]=await Promise.all([supabase.from("services").select("id,nome,descrizione,durata_minuti,prezzo").eq("attivo",true).order("ordine"),supabase.from("booking_settings").select("maximum_booking_days").eq("id",1).single(),supabase.from("working_hours").select("day_of_week,is_open"),supabase.from("closures").select("closure_date,all_day")]);setServices(s||[]);if(s?.length)setServiceId(s[0].id);setMaxDays(cfg?.maximum_booking_days||60);setWorkingHours(h||[]);setClosures(c||[]);setLoading(false);}
+ const visibleDays=useMemo(()=>{const today=new Date();return Array.from({length:14},(_,i)=>addDays(today,pageStart+i)).filter(d=>d<=addDays(today,maxDays));},[pageStart,maxDays]);
+ useEffect(()=>{if(serviceId&&visibleDays.length)checkVisibleDays();},[serviceId,pageStart,workingHours,closures]);
+ useEffect(()=>{if(serviceId&&date)loadSlots();},[serviceId,date]);
+ function baseStatus(day){const key=isoDate(day);const hours=workingHours.find(x=>x.day_of_week===day.getDay());const closedByHours=!hours?.is_open;const closedByException=closures.some(x=>x.closure_date===key&&x.all_day);return closedByHours||closedByException?"closed":"unknown";}
+ async function checkVisibleDays(){setCheckingDays(true);const entries=await Promise.all(visibleDays.map(async day=>{const key=isoDate(day);if(baseStatus(day)==="closed")return[key,"closed"];const{data,error}=await supabase.rpc("get_available_slots",{p_date:key,p_service_id:serviceId});if(error)return[key,"error"];return[key,(data||[]).length?"available":"full"];}));const next=Object.fromEntries(entries);setDayStatus(next);setCheckingDays(false);const current=isoDate(fromIso(date||isoDate(new Date())));if(!date||next[current]==="closed"||next[current]==="full"){const first=entries.find(([,status])=>status==="available");if(first)setDate(first[0]);else setDate("");}}
+ async function loadSlots(){setSelected("");setMessage("");const{data,error}=await supabase.rpc("get_available_slots",{p_date:date,p_service_id:serviceId});if(error){setMessage(error.message);setSlots([]);}else setSlots((data||[]).map(x=>x.slot_start.slice(0,5)));}
+ async function book(){if(!selected)return setMessage("Seleziona un orario.");setSaving(true);const{error}=await supabase.rpc("client_create_booking",{p_service_id:serviceId,p_date:date,p_start_time:selected,p_notes:notes});setSaving(false);if(error){setMessage(error.message);await loadSlots();return;}setMessage("Prenotazione confermata correttamente.");setSelected("");setNotes("");await checkVisibleDays();setTimeout(()=>location.href="/area-cliente",1400);}
+ function chooseDay(day){const key=isoDate(day);if(dayStatus[key]!=="available")return;setDate(key);}
+ if(loading)return <main className="booking-shell"><p>Caricamento...</p></main>;
+ const service=services.find(s=>s.id===serviceId);
+ return <main className="booking-shell"><div className="booking-panel"><header className="booking-top"><div><p className="auth-kicker">Area cliente</p><h1>Prenota appuntamento</h1></div><div><a className="button button-secondary" href="/area-cliente">Area cliente</a><a className="button button-secondary" href="/">Home</a></div></header>
+ <section className="booking-steps"><div className="booking-box"><h2>1. Scegli il servizio</h2><div className="booking-services">{services.map(s=><button className={serviceId===s.id?"selected":""} onClick={()=>setServiceId(s.id)} key={s.id}><strong>{s.nome}</strong><span>{s.durata_minuti} min · € {Number(s.prezzo).toFixed(2)}</span><small>{s.descrizione}</small></button>)}</div></div>
+ <div className="booking-box booking-date-box"><div className="booking-date-heading"><h2>2. Scegli la data</h2><div><button onClick={()=>setPageStart(Math.max(0,pageStart-7))} disabled={pageStart===0}>‹</button><button onClick={()=>setPageStart(Math.min(maxDays,pageStart+7))} disabled={pageStart+14>maxDays}>›</button></div></div><div className="booking-day-legend"><span className="legend-closed">Chiuso</span><span className="legend-full">Completo</span></div><div className="booking-days">{visibleDays.map(day=>{const key=isoDate(day),status=dayStatus[key]||baseStatus(day);return <button key={key} className={`booking-day booking-day-${status} ${date===key?"selected":""}`} disabled={status!=="available"} onClick={()=>chooseDay(day)}><span>{DAY_SHORT[day.getDay()]}</span><strong>{day.getDate()}</strong><small>{MONTH_SHORT[day.getMonth()]}</small><em>{status==="closed"?"Chiuso":status==="full"?"Completo":status==="available"?"Disponibile":"..."}</em></button>})}</div>{checkingDays&&<p className="booking-checking">Aggiornamento disponibilità...</p>}<h2>3. Scegli l’orario</h2>{date&&<p className="booking-selected-date">{longDate(date)}</p>}<div className="booking-slots">{slots.map(t=><button className={selected===t?"selected":""} onClick={()=>setSelected(t)} key={t}>{t}</button>)}{date&&!slots.length&&!checkingDays&&<p>Nessun orario disponibile per questa data.</p>}{!date&&<p>Scegli un giorno disponibile.</p>}</div></div>
+ <div className="booking-box booking-confirm"><h2>4. Conferma</h2>{service&&<p><strong>{service.nome}</strong><br/>{date?longDate(date):"Data non scelta"} {selected&&`alle ${selected}`}<br/>€ {Number(service.prezzo).toFixed(2)}</p>}<label>Note facoltative<textarea rows="3" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Esigenze o comunicazioni per il salone"/></label>{message&&<p className="form-message">{message}</p>}<button className="button button-primary button-large" onClick={book} disabled={saving||!selected}>{saving?"Prenotazione...":"Conferma prenotazione"}</button></div></section></div></main>;
 }
