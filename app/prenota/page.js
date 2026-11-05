@@ -1,8 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../../lib/supabase';
 
-// Integrazione della selezione del parrucchiere nel flusso di prenotazione
 export default function PrenotaPage() {
   const [hairdressers, setHairdressers] = useState([]);
   const [selectedHairdresser, setSelectedHairdresser] = useState(null);
@@ -16,7 +15,6 @@ export default function PrenotaPage() {
     fetchHairdressers();
   }, []);
 
-  // Esempio salvataggio prenotazione
   async function handleBooking(bookingDetails) {
     setLoading(true);
     const { data, error } = await supabase.from('bookings').insert([
@@ -33,7 +31,6 @@ export default function PrenotaPage() {
     <div className="max-w-3xl mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Prenota un Appuntamento</h1>
 
-      {/* Selezione Parrucchiere (visibile solo se esistono parrucchieri nel database) */}
       {hairdressers.length > 0 && (
         <div className="mb-6 bg-white p-4 rounded-xl shadow-sm border">
           <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -66,8 +63,6 @@ export default function PrenotaPage() {
           </div>
         </div>
       )}
-
-      {/* Resto del form di prenotazione (data, ora, servizi) */}
     </div>
   );
 }
