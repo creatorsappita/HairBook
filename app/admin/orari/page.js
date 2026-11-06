@@ -83,7 +83,7 @@ export default function AdminOrariPage(){
 
   return <main className="hours-shell"><div className="hours-panel">
     <header className="hours-topbar"><div><p className="auth-kicker">Area proprietario</p><h1>Orari del salone</h1></div><nav className="hours-nav"><a className="button button-secondary" href="/admin/clienti">Clienti</a><a className="button button-secondary" href="/admin/servizi">Servizi</a><a className="button button-primary" href="/admin/orari">Orari</a>
-    <a className="button button-secondary" href="/admin/agenda">Agenda</a>
+    <a className="button button-secondary" href="/admin/parrucchieri">Parrucchieri</a><a className="button button-secondary" href="/admin/agenda">Agenda</a>
     <a className="button button-secondary" href="/">Home</a><button className="button button-dark" onClick={logout}>Esci</button></nav></header>
 
     {message&&<p className="form-message" role="status">{message}</p>}

@@ -1,68 +1,38 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+"use client";
+import { useEffect, useMemo, useState } from "react";
+import { supabase, isSupabaseConfigured } from "../../lib/supabase";
 
-export default function PrenotaPage() {
-  const [hairdressers, setHairdressers] = useState([]);
-  const [selectedHairdresser, setSelectedHairdresser] = useState(null);
-  const [loading, setLoading] = useState(false);
+const DAYS=["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
+const MONTHS=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+function iso(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`}
+function fromIso(v){const[y,m,d]=v.split("-").map(Number);return new Date(y,m-1,d,12)}
+function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
+function label(v){return fromIso(v).toLocaleDateString("it-IT",{weekday:"long",day:"2-digit",month:"long",year:"numeric"})}
+function initials(name){return name.split(" ").filter(Boolean).map(x=>x[0]).join("").slice(0,2).toUpperCase()}
 
-  useEffect(() => {
-    async function fetchHairdressers() {
-      const { data } = await supabase.from('hairdressers').select('*').order('name', { ascending: true });
-      setHairdressers(data || []);
-    }
-    fetchHairdressers();
-  }, []);
+export default function PrenotaPage(){
+ const[services,setServices]=useState([]),[staff,setStaff]=useState([]),[serviceId,setServiceId]=useState(""),[staffId,setStaffId]=useState(null),[mode,setMode]=useState("staff-first"),[date,setDate]=useState(""),[slot,setSlot]=useState(""),[slots,setSlots]=useState([]),[availableStaff,setAvailableStaff]=useState([]),[notes,setNotes]=useState(""),[message,setMessage]=useState(""),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[maxDays,setMaxDays]=useState(60),[weekOffset,setWeekOffset]=useState(0),[monthMode,setMonthMode]=useState(false),[monthCursor,setMonthCursor]=useState(new Date()),[dayStatus,setDayStatus]=useState({});
+ useEffect(()=>{load()},[]);
+ async function load(){if(!isSupabaseConfigured||!supabase)return;const{data:{user}}=await supabase.auth.getUser();if(!user){location.href="/login";return}const{data:p}=await supabase.from("profiles").select("ruolo,stato").eq("id",user.id).single();if(p?.ruolo!=="CLIENTE"||p?.stato!=="APPROVATO"){location.href="/area-cliente";return}const[{data:s},{data:h},{data:cfg}]=await Promise.all([supabase.from("services").select("id,nome,descrizione,durata_minuti,prezzo").eq("attivo",true).order("ordine"),supabase.from("hairdressers").select("id,name,avatar_url").eq("active",true).order("display_order").order("name"),supabase.from("booking_settings").select("maximum_booking_days").eq("id",1).single()]);setServices(s||[]);setStaff(h||[]);if(s?.length)setServiceId(s[0].id);setMaxDays(cfg?.maximum_booking_days||60);setLoading(false)}
+ const today=useMemo(()=>{const d=new Date();d.setHours(12,0,0,0);return d},[]);const maxDate=useMemo(()=>addDays(today,maxDays),[today,maxDays]);
+ const days=useMemo(()=>{if(!monthMode)return Array.from({length:7},(_,i)=>addDays(today,weekOffset+i)).filter(d=>d<=maxDate);const first=new Date(monthCursor.getFullYear(),monthCursor.getMonth(),1,12),start=addDays(first,-((first.getDay()+6)%7));return Array.from({length:42},(_,i)=>addDays(start,i))},[monthMode,weekOffset,monthCursor,today,maxDate]);
+ useEffect(()=>{if(serviceId)checkDays()},[serviceId,staffId,days.length,weekOffset,monthMode,monthCursor]);
+ useEffect(()=>{if(serviceId&&date)loadSlots()},[serviceId,date,staffId]);
+ useEffect(()=>{if(mode==="time-first"&&serviceId&&date&&slot)loadAvailableStaff();else setAvailableStaff([])},[mode,serviceId,date,slot]);
+ async function checkDays(){const entries=await Promise.all(days.map(async d=>{const key=iso(d);if(d<today||d>maxDate)return[key,"outside"];const{data,error}=await supabase.rpc("get_available_slots_v2",{p_date:key,p_service_id:serviceId,p_hairdresser_id:mode==="staff-first"?staffId:null});return[key,error?"error":(data||[]).length?"available":"full"]}));const next=Object.fromEntries(entries);setDayStatus(next);if(date&&next[date]!=="available"){setDate("");setSlot("")}}
+ async function loadSlots(){setSlot("");setAvailableStaff([]);const{data,error}=await supabase.rpc("get_available_slots_v2",{p_date:date,p_service_id:serviceId,p_hairdresser_id:mode==="staff-first"?staffId:null});if(error){setMessage(error.message);setSlots([])}else setSlots((data||[]).map(x=>x.slot_start.slice(0,5)))}
+ async function loadAvailableStaff(){const{data,error}=await supabase.rpc("get_available_hairdressers",{p_date:date,p_service_id:serviceId,p_start_time:slot});if(error)setMessage(error.message);else setAvailableStaff(data||[])}
+ function selectMode(value){setMode(value);setStaffId(null);setDate("");setSlot("");setSlots([]);setAvailableStaff([])}
+ async function book(){if(!date||!slot)return setMessage("Seleziona data e orario.");setSaving(true);setMessage("");const chosen=staff.length?(staffId||null):null;const{error}=await supabase.rpc("client_create_booking_v2",{p_service_id:serviceId,p_date:date,p_start_time:slot,p_notes:notes,p_hairdresser_id:chosen});setSaving(false);if(error){setMessage(error.message);await loadSlots();return}setMessage("Prenotazione confermata correttamente.");setTimeout(()=>location.href="/area-cliente",1200)}
+ const service=services.find(s=>s.id===serviceId),selectedStaff=staff.find(h=>h.id===staffId);
+ if(loading)return <main className="booking-shell"><p>Caricamento...</p></main>;
+ return <main className="booking-shell"><div className="booking-panel booking-panel-wide"><header className="booking-top"><div><p className="auth-kicker">Area cliente</p><h1>Prenota un appuntamento</h1></div><div><a className="button button-secondary" href="/area-cliente">Area cliente</a><a className="button button-secondary" href="/">Home</a></div></header>
+ <section className="booking-steps booking-steps-multi"><div className="booking-box"><h2>1. Scegli il servizio</h2><div className="booking-services">{services.map(s=><button key={s.id} className={s.id===serviceId?"selected":""} onClick={()=>{setServiceId(s.id);setDate("");setSlot("")}}><strong>{s.nome}</strong><span>{s.durata_minuti} min · € {Number(s.prezzo).toFixed(2)}</span><small>{s.descrizione}</small></button>)}</div></div>
+ <div className="booking-box booking-main-choice">{staff.length>0&&<><div className="booking-mode"><button className={mode==="staff-first"?"active":""} onClick={()=>selectMode("staff-first")}>Prima il parrucchiere</button><button className={mode==="time-first"?"active":""} onClick={()=>selectMode("time-first")}>Prima data e ora</button></div>{mode==="staff-first"&&<StaffSelector title="2. Scegli il parrucchiere" staff={staff} selected={staffId} onSelect={id=>{setStaffId(id);setDate("");setSlot("")}} allowAny/>}</>}
+ <DateSelector number={staff.length&&mode==="staff-first"?3:2} days={days} statuses={dayStatus} selected={date} onSelect={setDate} monthMode={monthMode} setMonthMode={setMonthMode} monthCursor={monthCursor} setMonthCursor={setMonthCursor} weekOffset={weekOffset} setWeekOffset={setWeekOffset} maxDays={maxDays}/>
+ <h2>{staff.length&&mode==="staff-first"?4:3}. Scegli l’orario</h2>{date&&<p className="booking-selected-date">{label(date)}</p>}<div className="booking-slots">{slots.map(t=><button key={t} className={slot===t?"selected":""} onClick={()=>{setSlot(t);if(mode==="time-first")setStaffId(null)}}>{t}</button>)}{date&&!slots.length&&<p>Nessun orario disponibile.</p>}</div>
+ {staff.length>0&&mode==="time-first"&&slot&&<StaffSelector title="4. Scegli il parrucchiere disponibile" staff={availableStaff} selected={staffId} onSelect={setStaffId} allowAny empty="Nessun parrucchiere disponibile."/>}</div>
+ <div className="booking-box booking-confirm"><h2>Conferma</h2>{service&&<p><strong>{service.nome}</strong><br/>{date?label(date):"Data non scelta"}{slot&&` alle ${slot}`}<br/>{staff.length?`Parrucchiere: ${selectedStaff?.name||"Qualsiasi disponibile"}`:""}<br/>€ {Number(service.prezzo).toFixed(2)}</p>}<label>Note facoltative<textarea rows="3" value={notes} onChange={e=>setNotes(e.target.value)}/></label>{message&&<p className="form-message">{message}</p>}<button className="button button-primary button-large" onClick={book} disabled={saving||!slot||(staff.length&&mode==="time-first"&&!staffId&&availableStaff.length===0)}>{saving?"Prenotazione...":"Conferma prenotazione"}</button></div></section></div></main>}
 
-  async function handleBooking(bookingDetails) {
-    setLoading(true);
-    const { data, error } = await supabase.from('bookings').insert([
-      {
-        ...bookingDetails,
-        hairdresser_id: selectedHairdresser || null
-      }
-    ]);
-    setLoading(false);
-    return { data, error };
-  }
-
-  return (
-    <div className="max-w-3xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Prenota un Appuntamento</h1>
-
-      {hairdressers.length > 0 && (
-        <div className="mb-6 bg-white p-4 rounded-xl shadow-sm border">
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Scegli il tuo parrucchiere di fiducia (Opzionale)
-          </label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div 
-              onClick={() => setSelectedHairdresser(null)}
-              className={`p-3 border rounded-xl cursor-pointer text-center transition ${!selectedHairdresser ? 'border-blue-600 bg-blue-50 shadow-sm' : 'bg-white hover:bg-gray-50'}`}
-            >
-              <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-600">
-                Tutti
-              </div>
-              <span className="text-xs font-medium block">Qualsiasi disponibile</span>
-            </div>
-            {hairdressers.map((h) => (
-              <div 
-                key={h.id} 
-                onClick={() => setSelectedHairdresser(h.id)}
-                className={`p-3 border rounded-xl cursor-pointer text-center transition ${selectedHairdresser === h.id ? 'border-blue-600 bg-blue-50 shadow-sm' : 'bg-white hover:bg-gray-50'}`}
-              >
-                <img 
-                  src={h.avatar_url || 'https://via.placeholder.com/150'} 
-                  alt={h.name} 
-                  className="w-12 h-12 mx-auto mb-2 rounded-full object-cover border"
-                />
-                <span className="text-xs font-medium block truncate">{h.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+function StaffSelector({title,staff,selected,onSelect,allowAny,empty}){return <section className="staff-picker"><h2>{title}</h2><div className="staff-picker-grid">{allowAny&&<button className={`staff-choice ${selected===null?"selected":""}`} onClick={()=>onSelect(null)}><span className="staff-avatar staff-any">✓</span><strong>Qualsiasi disponibile</strong></button>}{staff.map(h=><button key={h.id} className={`staff-choice ${selected===h.id?"selected":""}`} onClick={()=>onSelect(h.id)}>{h.avatar_url?<img className="staff-avatar" src={h.avatar_url} alt=""/>:<span className="staff-avatar staff-any">{initials(h.name)}</span>}<strong>{h.name}</strong>{selected===h.id&&<small>Selezionato</small>}</button>)}</div>{!staff.length&&empty&&<p>{empty}</p>}</section>}
+function DateSelector({number,days,statuses,selected,onSelect,monthMode,setMonthMode,monthCursor,setMonthCursor,weekOffset,setWeekOffset,maxDays}){return <section className="date-picker"><div className="date-picker-head"><h2>{number}. Scegli la data</h2><div><button className={!monthMode?"active":""} onClick={()=>setMonthMode(false)}>7 giorni</button><button className={monthMode?"active":""} onClick={()=>setMonthMode(true)}>Mese</button></div></div><div className="date-nav"><button disabled={!monthMode&&weekOffset===0} onClick={()=>monthMode?setMonthCursor(new Date(monthCursor.getFullYear(),monthCursor.getMonth()-1,1)):setWeekOffset(Math.max(0,weekOffset-7))}>‹</button><strong>{monthMode?`${MONTHS[monthCursor.getMonth()]} ${monthCursor.getFullYear()}`:"Prossimi giorni"}</strong><button disabled={!monthMode&&weekOffset+7>=maxDays} onClick={()=>monthMode?setMonthCursor(new Date(monthCursor.getFullYear(),monthCursor.getMonth()+1,1)):setWeekOffset(weekOffset+7)}>›</button></div><div className={monthMode?"booking-month-grid":"booking-days booking-days-seven"}>{days.map(d=>{const key=iso(d),st=statuses[key]||"outside";return <button key={key} className={`booking-day booking-day-${st} ${selected===key?"selected":""}`} disabled={st!=="available"} onClick={()=>onSelect(key)}><span>{DAYS[d.getDay()]}</span><strong>{d.getDate()}</strong><small>{st==="available"?"Disponibile":st==="full"?"Completo":"Chiuso"}</small></button>})}</div></section>}
