@@ -1,110 +1,13 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { supabase } from '../../../lib/supabase';
-
-export default function AdminParrucchieriPage() {
-  const [hairdressers, setHairdressers] = useState([]);
-  const [name, setName] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    fetchHairdressers();
-  }, []);
-
-  async function fetchHairdressers() {
-    const { data, error } = await supabase.from('hairdressers').select('*').order('created_at', { ascending: true });
-    if (!error) setHairdressers(data || []);
-  }
-
-  async function handleAdd(e) {
-    e.preventDefault();
-    if (!name.trim()) return;
-    setLoading(true);
-
-    const { error } = await supabase.from('hairdressers').insert([{ name, avatar_url: avatarUrl }]);
-    if (!error) {
-      setName('');
-      setAvatarUrl('');
-      fetchHairdressers();
-    } else {
-      alert('Errore durante il salvataggio: ' + error.message);
-    }
-    setLoading(false);
-  }
-
-  async function handleDelete(id) {
-    if (!confirm('Sei sicuro di voler eliminare questo parrucchiere?')) return;
-    const { error } = await supabase.from('hairdressers').delete().eq('id', id);
-    if (!error) {
-      fetchHairdressers();
-    } else {
-      alert('Errore durante l\'eliminazione: ' + error.message);
-    }
-  }
-
-  return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Gestione Parrucchieri</h1>
-
-      {/* Form inserimento */}
-      <form onSubmit={handleAdd} className="bg-white p-6 rounded-lg shadow mb-8 flex flex-col md:flex-row gap-4 items-end">
-        <div className="flex-1 w-full">
-          <label className="block text-sm font-medium mb-1">Nome Parrucchiere</label>
-          <input 
-            type="text" 
-            value={name} 
-            onChange={(e) => setName(e.target.value)} 
-            className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" 
-            placeholder="Es. Mario Rossi"
-            required 
-          />
-        </div>
-        <div className="flex-1 w-full">
-          <label className="block text-sm font-medium mb-1">URL Foto / Avatar (Opzionale)</label>
-          <input 
-            type="text" 
-            value={avatarUrl} 
-            onChange={(e) => setAvatarUrl(e.target.value)} 
-            className="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" 
-            placeholder="https://..." 
-          />
-        </div>
-        <button 
-          type="submit" 
-          disabled={loading}
-          className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition w-full md:w-auto h-10 font-medium"
-        >
-          {loading ? 'Salvataggio...' : 'Aggiungi'}
-        </button>
-      </form>
-
-      {/* Lista parrucchieri */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {hairdressers.map((h) => (
-          <div key={h.id} className="bg-white p-4 rounded-lg shadow flex items-center justify-between border">
-            <div className="flex items-center gap-3">
-              <img 
-                src={h.avatar_url || 'https://via.placeholder.com/150'} 
-                alt={h.name} 
-                className="w-12 h-12 rounded-full object-cover border"
-              />
-              <div>
-                <h3 className="font-semibold text-gray-800">{h.name}</h3>
-              </div>
-            </div>
-            <button 
-              onClick={() => handleDelete(h.id)}
-              className="text-red-500 hover:text-red-700 text-sm font-medium p-1"
-            >
-              Elimina
-            </button>
-          </div>
-        ))}
-        {hairdressers.length === 0 && (
-          <p className="text-gray-500 col-span-full text-center py-4">Nessun parrucchiere inserito. Il sistema funzionerà in modalità standard.</p>
-        )}
-      </div>
-    </div>
-  );
-}
+"use client";
+import{useEffect,useState}from"react";import{supabase,isSupabaseConfigured}from"../../../lib/supabase";
+export default function AdminParrucchieri(){const[list,setList]=useState([]),[name,setName]=useState(""),[avatar,setAvatar]=useState(""),[file,setFile]=useState(null),[edit,setEdit]=useState(null),[message,setMessage]=useState(""),[loading,setLoading]=useState(true),[allowed,setAllowed]=useState(false);
+useEffect(()=>{load();},[]);async function load(){if(!isSupabaseConfigured)return;const{data:{user}}=await supabase.auth.getUser();if(!user){location.href="/login";return;}const{data:p}=await supabase.from("profiles").select("ruolo,stato").eq("id",user.id).single();if(p?.ruolo!=="PROPRIETARIO"||p?.stato!=="APPROVATO"){setLoading(false);return;}setAllowed(true);const{data}=await supabase.from("hairdressers").select("*").order("display_order").order("name");setList(data||[]);setLoading(false);}
+async function upload(){if(!file)return avatar;const ext=file.name.split(".").pop();const path=`${crypto.randomUUID()}.${ext}`;const{error}=await supabase.storage.from("hairdresser-avatars").upload(path,file,{upsert:false});if(error)throw error;return supabase.storage.from("hairdresser-avatars").getPublicUrl(path).data.publicUrl;}
+async function save(e){e.preventDefault();setMessage("");try{const url=await upload();const{error}=edit?await supabase.rpc("owner_update_hairdresser",{p_id:edit.id,p_name:name,p_avatar_url:url||null,p_active:edit.active}):await supabase.rpc("owner_create_hairdresser",{p_name:name,p_avatar_url:url||null});if(error)throw error;setName("");setAvatar("");setFile(null);setEdit(null);setMessage(edit?"Parrucchiere aggiornato.":"Parrucchiere aggiunto.");await load();}catch(err){setMessage(err.message);}}
+function startEdit(h){setEdit(h);setName(h.name);setAvatar(h.avatar_url||"");setFile(null);window.scrollTo({top:0,behavior:"smooth"});}
+async function toggle(h){const{error}=await supabase.rpc("owner_update_hairdresser",{p_id:h.id,p_name:h.name,p_avatar_url:h.avatar_url,p_active:!h.active});if(error)setMessage(error.message);else load();}
+async function remove(h){if(!confirm(`Eliminare ${h.name}? Se ha appuntamenti verrà solo disattivato.`))return;const{error}=await supabase.rpc("owner_delete_hairdresser",{p_id:h.id});if(error)setMessage(error.message);else load();}
+if(loading)return<main className="staff-shell">Caricamento...</main>;if(!allowed)return<main className="staff-shell"><h1>Accesso negato</h1></main>;return<main className="staff-shell"><div className="staff-panel"><header className="staff-top"><div><p className="auth-kicker">Area proprietario</p><h1>Parrucchieri</h1></div><nav><a className="button button-secondary" href="/admin/clienti">Clienti</a><a className="button button-secondary" href="/admin/servizi">Servizi</a><a className="button button-secondary" href="/admin/orari">Orari</a><a className="button button-primary" href="/admin/parrucchieri">Parrucchieri</a><a className="button button-secondary" href="/admin/agenda">Agenda</a></nav></header>
+<section className="staff-form-card"><h2>{edit?"Modifica parrucchiere":"Aggiungi parrucchiere"}</h2><form onSubmit={save}><label>Nome<input value={name} onChange={e=>setName(e.target.value)} required/></label><label>Foto o avatar<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>setFile(e.target.files?.[0]||null)}/><small>JPG, PNG o WebP, massimo 3 MB.</small></label><label>Oppure URL immagine<input value={avatar} onChange={e=>setAvatar(e.target.value)} placeholder="https://..."/></label><button className="button button-primary">{edit?"Salva modifiche":"Aggiungi"}</button>{edit&&<button type="button" className="button button-secondary" onClick={()=>{setEdit(null);setName("");setAvatar("");}}>Annulla</button>}</form>{message&&<p className="form-message">{message}</p>}</section>
+<section className="staff-list">{list.map(h=><article key={h.id} className={!h.active?"inactive":""}>{h.avatar_url?<img src={h.avatar_url} alt=""/>:<div className="staff-initials">{h.name.split(" ").map(x=>x[0]).join("").slice(0,2).toUpperCase()}</div>}<div><h3>{h.name}</h3><span>{h.active?"Attivo":"Disattivato"}</span></div><div className="staff-actions"><button onClick={()=>startEdit(h)}>Modifica</button><button onClick={()=>toggle(h)}>{h.active?"Disattiva":"Riattiva"}</button><button onClick={()=>remove(h)}>Elimina</button></div></article>)}{!list.length&&<div className="staff-empty">Nessun parrucchiere configurato. HairBook continuerà a funzionare con l’agenda unica attuale.</div>}</section>
+</div></main>}
